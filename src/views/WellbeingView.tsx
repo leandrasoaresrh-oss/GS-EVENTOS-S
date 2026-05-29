@@ -224,7 +224,7 @@ export const WellbeingView: React.FC = () => {
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed font-sans">{fb.text}</p>
 
                 <div className="pt-2 border-t dark:border-gray-900 flex justify-between items-center text-[10px]">
-                  <span className={`px-2 py-0.5 rounded font-bold font-mono ${fb.resolved ? "bg-emerald-100 text-emerald-800" : "bg-amber-105 bg-amber-100 text-amber-800"}`}>
+                  <span className={`px-2 py-0.5 rounded font-bold font-mono ${fb.resolved ? "bg-emerald-100 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400"}`}>
                     {fb.resolved ? "✓ Respondido e Mitigado de forma sigilosa pelo DP" : "☉ Em análise pelo RH"}
                   </span>
 

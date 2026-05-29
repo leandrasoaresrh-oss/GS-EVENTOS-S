@@ -24,6 +24,8 @@ export interface User {
   banner?: string;
   statusText?: string;
   companyId?: string; // Multi-company scoping
+  password?: string;
+  isFirstAccess?: boolean;
 }
 
 export interface CompanyConfig {
@@ -128,6 +130,8 @@ export interface Task {
   completedAt?: string;
   companyId?: string; // Multi-company scoping
   dependsOnTaskId?: string; // Parent task dependency
+  estimatedHours?: number;
+  actualHours?: number;
 }
 
 export interface TechnicalVisit {

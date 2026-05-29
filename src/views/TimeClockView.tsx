@@ -25,6 +25,8 @@ export const TimeClockView: React.FC = () => {
   const [justReason, setJustReason] = useState<string>("Problema Técnico / Dispositivo");
   const [justText, setJustText] = useState<string>("");
   const [justSuccessMsg, setJustSuccessMsg] = useState<string>("");
+  const [localError, setLocalError] = useState<string>("");
+  const [localSuccess, setLocalSuccess] = useState<string>("");
 
   // Filters for DP History view
   const [filterEmpId, setFilterEmpId] = useState<string>("todos");
@@ -61,7 +63,8 @@ export const TimeClockView: React.FC = () => {
     
     // Safety check
     if (!emp) {
-      alert("Colaborador não identificado no cadastro de Recursos Humanos.");
+      setLocalError("Colaborador não identificado no cadastro de Recursos Humanos.");
+      setTimeout(() => setLocalError(""), 5000);
       return;
     }
 
@@ -73,6 +76,9 @@ export const TimeClockView: React.FC = () => {
       approved: true,
       notes: `Registrado com sucesso via terminal digital instantâneo por ${currentUser.name}.`
     });
+
+    setLocalSuccess(`Ponto de ${type} registrado com sucesso para ${emp.fullName}!`);
+    setTimeout(() => setLocalSuccess(""), 5050);
 
     // Pulse notification effect
     const btn = document.getElementById(`btn-clock-${type.replace(/\s+/g, '')}`);
@@ -90,7 +96,8 @@ export const TimeClockView: React.FC = () => {
     if (!emp) return;
 
     if (!justText.trim()) {
-      alert("Por favor, digite o motivo detalhado de sua justificativa.");
+      setLocalError("Por favor, digite o motivo detalhado de sua justificativa.");
+      setTimeout(() => setLocalError(""), 5000);
       return;
     }
 
@@ -263,6 +270,26 @@ export const TimeClockView: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* LOCAL ALERTS FEEDBACK INSTEAD OF BROWSER ALERTS */}
+      {(localError || localSuccess) && (
+        <div className="space-y-2 animate-fade-in">
+          {localError && (
+            <div className="bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 p-3.5 rounded-2xl border border-red-253/40 dark:border-red-950/40 flex items-center gap-3 font-semibold text-xs animate-scale-up shadow-3xs">
+              <span className="text-sm">⚠️</span>
+              <span className="flex-1">{localError}</span>
+              <button onClick={() => setLocalError("")} className="text-red-450 hover:text-red-700 font-mono text-[9px] uppercase font-bold">Fechar</button>
+            </div>
+          )}
+          {localSuccess && (
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-2xl border border-emerald-253/40 dark:border-emerald-950/40 flex items-center gap-3 font-semibold text-xs animate-scale-up shadow-3xs">
+              <span className="text-sm">✓</span>
+              <span className="flex-1">{localSuccess}</span>
+              <button onClick={() => setLocalSuccess("")} className="text-emerald-450 hover:text-emerald-700 font-mono text-[9px] uppercase font-bold">Fechar</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

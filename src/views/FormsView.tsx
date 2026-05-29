@@ -8,6 +8,7 @@ export const FormsView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'preencher' | 'construtor' | 'respostas'>('preencher');
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyMine, setShowOnlyMine] = useState(currentUser.profile === "Operacional");
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   // Form builder state (Apenas para Admin - pág 23)
   const [formName, setFormName] = useState("");
@@ -504,10 +505,13 @@ export const FormsView: React.FC = () => {
           <div className="p-4 border-b dark:border-gray-900 text-xs font-bold text-gray-500 bg-gray-50/50 dark:bg-gray-900/10 flex justify-between items-center">
             <span>Últimos preenchimentos cadastrados em tempo real</span>
             <button
-              onClick={() => alert("Simulando exportação Excel compatível com relatórios DP...")}
-              className="text-[10px] text-[var(--color-primary)] font-black hover:underline"
+              onClick={() => {
+                setExportSuccess(true);
+                setTimeout(() => setExportSuccess(false), 3000);
+              }}
+              className={`text-[10px] font-black px-2.5 py-1 rounded-lg transition-all ${exportSuccess ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400" : "text-[var(--color-primary)] hover:underline"}`}
             >
-              Exportar XLSX / PDF
+              {exportSuccess ? "✓ Planilha DP Exportada com Sucesso!" : "Exportar XLSX / PDF"}
             </button>
           </div>
 

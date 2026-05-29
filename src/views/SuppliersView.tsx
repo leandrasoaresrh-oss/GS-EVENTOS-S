@@ -8,11 +8,12 @@ import {
 } from "lucide-react";
 
 export const SuppliersView: React.FC = () => {
-  const { suppliers, addSupplier, updateSupplier, currentUser } = useApp();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, currentUser } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+  const [confirmDeleteSupplierId, setConfirmDeleteSupplierId] = useState<string | null>(null);
 
   // Form State (for both create & full edit)
   const [cnpj, setCnpj] = useState("");
@@ -459,11 +460,56 @@ export const SuppliersView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-2.5 border-t dark:border-zinc-900 text-[10px] flex justify-between items-center text-gray-500 font-mono">
-                <span className="truncate max-w-[200px] block font-sans">📞 {sup.phone} • {sup.contact}</span>
-                <span className="text-[9px] font-black uppercase text-[var(--color-primary)] group-hover:underline flex items-center gap-0.5 font-sans">
-                  ABRIR COCKPIT 🔍
-                </span>
+              <div className="pt-2.5 border-t dark:border-zinc-900 text-[10px] space-y-2">
+                <div className="flex justify-between items-center text-gray-500 font-mono">
+                  <span className="truncate max-w-[200px] block font-sans">📞 {sup.phone} • {sup.contact}</span>
+                  <span className="text-[9px] font-black uppercase text-[var(--color-primary)] group-hover:underline flex items-center gap-0.5 font-sans shrink-0">
+                    ABRIR COCKPIT 🔍
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center bg-gray-50 dark:bg-zinc-900/60 p-1.5 rounded-xl border border-dashed dark:border-zinc-800" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-1.5 shrink-0">
+                    {confirmDeleteSupplierId === sup.id ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] text-red-500 font-bold uppercase font-mono">Apagar?</span>
+                        <button
+                          onClick={() => {
+                            deleteSupplier(sup.id);
+                            setConfirmDeleteSupplierId(null);
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-750 text-white text-[8px] uppercase font-bold"
+                        >
+                          Sim
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteSupplierId(null)}
+                          className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 text-[8px] uppercase font-bold"
+                        >
+                          Não
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleOpenEdit(sup)}
+                          className="p-1 px-1.5 rounded bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold flex items-center gap-1 text-[8px] uppercase tracking-wider transition-colors font-mono"
+                          title="Editar"
+                        >
+                          <Edit size={10} /> Editar
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteSupplierId(sup.id)}
+                          className="p-1 px-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 font-bold flex items-center gap-1 text-[8px] uppercase tracking-wider transition-colors font-mono"
+                          title="Excluir"
+                        >
+                          <Trash size={10} /> Excluir
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-gray-400 font-medium font-mono uppercase tracking-wide">Ref: {sup.cnpj.slice(-4)}</span>
+                </div>
               </div>
             </div>
           );

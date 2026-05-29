@@ -109,10 +109,10 @@ const AppContent: React.FC = () => {
   return (
     <div className={`min-h-screen md:h-screen md:overflow-hidden font-sans flex text-gray-900 bg-slate-100/95 dark:bg-zinc-950 transition-colors duration-300 relative ${theme === "dark" ? "dark text-zinc-100" : ""}`}>
       
-      {/* Whimsical Floating Background Bubbles */}
-      <div className="absolute top-10 right-20 w-96 h-96 bg-orange-200/35 dark:bg-orange-950/10 rounded-full blur-3xl -z-10 pointer-events-none animate-float-gentle"></div>
-      <div className="absolute bottom-20 left-10 w-[450px] h-[450px] bg-amber-200/30 dark:bg-amber-950/15 rounded-full blur-3xl -z-10 pointer-events-none animate-float-opposite"></div>
-      <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-rose-100/25 dark:bg-rose-950/5 rounded-full blur-3xl -z-10 pointer-events-none animate-float-gentle" style={{ animationDelay: '1.5s' }}></div>
+      {/* Whimsical Ambient Background Glows */}
+      <div className="absolute top-10 right-20 w-96 h-96 bg-orange-200/35 dark:bg-orange-950/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+      <div className="absolute bottom-20 left-10 w-[450px] h-[450px] bg-amber-200/30 dark:bg-amber-950/15 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+      <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-rose-100/25 dark:bg-rose-950/5 rounded-full blur-3xl -z-10 pointer-events-none" style={{ animationDelay: '1.5s' }}></div>
 
       {/* SIDEBAR NAVIGATION - VISIBLE ON DESKTOP md:block */}
       <div className="hidden md:block shrink-0 relative z-10 h-full">
@@ -146,8 +146,8 @@ const AppContent: React.FC = () => {
           </div>
 
           <div className="text-[11px] text-gray-400 dark:text-zinc-500 font-mono text-right hidden sm:flex items-center gap-2 bg-gray-50/75 dark:bg-zinc-900/30 px-3.5 py-1.5 rounded-2xl border border-gray-150/50 dark:border-zinc-800">
-            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
-            <span>Data de Monitoramento: <strong className="text-gray-700 dark:text-zinc-350">25 de maio de 2026</strong></span>
+            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" style={{ backgroundColor: companyConfig.primaryColor }}></span>
+            <span>Data de Monitoramento: <strong className="text-gray-700 dark:text-zinc-350">{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</strong></span>
           </div>
         </header>
 

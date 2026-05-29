@@ -7,7 +7,7 @@ import { EventBudget } from "../components/EventBudget";
 import { 
   Calendar, MapPin, CheckCircle2, AlertTriangle, Users, MessageSquare, 
   Camera, Plus, Clock, Search, SlidersHorizontal, Image as ImageIcon, Send, Trash, Shield, Info, Filter, ArrowLeft,
-  FileText, ClipboardCheck, DollarSign, PenTool, CheckCircle, AlertOctagon, UserCheck, HelpCircle
+  FileText, ClipboardCheck, DollarSign, PenTool, CheckCircle, AlertOctagon, UserCheck, HelpCircle, Edit
 } from "lucide-react";
 
 export const EventsView: React.FC = () => {
@@ -52,6 +52,9 @@ export const EventsView: React.FC = () => {
 
   // New Event Form Modal Toggle
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [editingOcc, setEditingOcc] = useState<Occurrence | null>(null);
+  const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<string | null>(null);
   const [newEventName, setNewEventName] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
   const [newEventAddress, setNewEventAddress] = useState("");
@@ -291,23 +294,54 @@ export const EventsView: React.FC = () => {
     evalSuitableFootwear, evalCleanPres, evalPosture, evalProactive, evalKnowsFunc
   ]);
 
+  const handleStartEditOcc = (occ: Occurrence) => {
+    setEditingOcc(occ);
+    setNewOccTitle(occ.title);
+    setNewOccDesc(occ.description);
+    setNewOccPriority(occ.priority);
+    setNewOccCategory(occ.category);
+    setNewOccSupplierId(occ.supplierId || "");
+  };
+
+  const handleStartEditEvent = (evt: Event, e: React.MouseEvent) => {
+    e.stopPropagation(); // Avoid opening detailed view
+    setEditingEvent(evt);
+    setNewEventName(evt.name);
+    setNewEventDate(evt.date);
+    setNewEventAddress(evt.address);
+    setNewEventStage(evt.stage);
+    setIsCreatingEvent(true);
+  };
+
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventName || !newEventDate) return;
-    addEvent({
-      name: newEventName,
-      date: newEventDate,
-      address: newEventAddress || "Espaço a definir",
-      coordinates: [-23.5539, -46.6521],
-      stage: newEventStage,
-      progress: 10,
-      checklistIds: [],
-      supplierIds: [],
-      staffIds: [currentUser.id]
-    });
+
+    if (editingEvent) {
+      updateEvent(editingEvent.id, {
+        name: newEventName,
+        date: newEventDate,
+        address: newEventAddress || "Espaço a definir",
+        stage: newEventStage,
+      });
+    } else {
+      addEvent({
+        name: newEventName,
+        date: newEventDate,
+        address: newEventAddress || "Espaço a definir",
+        coordinates: [-23.5539, -46.6521],
+        stage: newEventStage,
+        progress: 10,
+        checklistIds: [],
+        supplierIds: [],
+        staffIds: [currentUser.id]
+      });
+    }
+
     setNewEventName("");
     setNewEventDate("");
     setNewEventAddress("");
+    setEditingEvent(null);
     setIsCreatingEvent(false);
   };
 
@@ -477,22 +511,29 @@ export const EventsView: React.FC = () => {
 
           {/* NEW EVENT FORM MODAL IN-PLACE */}
           {isCreatingEvent && (
-            <form onSubmit={handleCreateEvent} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border-2 border-[var(--color-primary)]/20 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-sans shadow-lg animate-scale-up">
+            <form onSubmit={handleCreateEvent} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border-2 border-[var(--color-primary)]/20 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-sans shadow-lg animate-scale-up md:col-span-12">
+              <div className="md:col-span-4 border-b dark:border-zinc-900 pb-2">
+                <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+                  {editingEvent ? "📝 Editar Evento / Célula" : "➕ Novo Evento / Célula"}
+                </h3>
+              </div>
               <div className="md:col-span-2">
                 <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Nome do Evento / Projeto *</label>
                 <input type="text" required placeholder="Ex: Festival Arena Pop 2026" value={newEventName} onChange={(e) => setNewEventName(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
               </div>
               <div>
                 <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data Realização *</label>
-                <input type="date" required value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-gray-700 focus:outline-none" />
+                <input type="date" required value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-gray-700 dark:text-zinc-300 focus:outline-none" />
               </div>
               <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Estágio Inicial</label>
-                <select value={newEventStage} onChange={(e) => setNewEventStage(e.target.value as any)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-gray-750 focus:outline-none text-xs">
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Estágio Inicial / Atual</label>
+                <select value={newEventStage} onChange={(e) => setNewEventStage(e.target.value as any)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-gray-750 dark:text-zinc-350 focus:outline-none text-xs">
                   <option value="visita_tecnica">Visita Técnica</option>
                   <option value="pre_evento">Pré-Evento</option>
                   <option value="montagem">Montagem</option>
-                  <option value="execucao">Execução</option>
+                  <option value="execucao">Execução / Ao Vivo</option>
+                  <option value="pos_evento">Pós-Evento</option>
+                  <option value="finalizado">Concluído</option>
                 </select>
               </div>
               <div className="md:col-span-4">
@@ -500,8 +541,19 @@ export const EventsView: React.FC = () => {
                 <input type="text" placeholder="Ex: Allianz Parque, São Paulo - SP" value={newEventAddress} onChange={(e) => setNewEventAddress(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
               </div>
               <div className="md:col-span-4 flex justify-end gap-2 pt-2 border-t dark:border-zinc-900">
-                <button type="button" onClick={() => setIsCreatingEvent(false)} className="px-4 py-2 bg-gray-100 dark:bg-zinc-900 rounded-xl font-bold font-mono">Cancelar</button>
-                <button type="submit" className="px-5 py-2 bg-[var(--color-primary)] text-white font-bold rounded-xl shadow-xs">Gravar Evento</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingEvent(null);
+                    setIsCreatingEvent(false);
+                  }}
+                  className="px-4 py-2 bg-gray-100 dark:bg-zinc-900 rounded-xl font-bold font-mono text-gray-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-800"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="px-5 py-2 bg-[var(--color-primary)] text-white font-bold rounded-xl shadow-xs hover:bg-orange-600">
+                  {editingEvent ? "Salvar Alterações" : "Gravar Evento"}
+                </button>
               </div>
             </form>
           )}
@@ -554,7 +606,46 @@ export const EventsView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t dark:border-zinc-900 flex justify-end">
+                <div className="pt-3 border-t dark:border-zinc-900 flex justify-between items-center gap-2">
+                  <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                    {confirmDeleteEventId === evt.id ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-red-500 font-bold uppercase font-mono">Confirma?</span>
+                        <button
+                          onClick={() => {
+                            deleteEvent(evt.id);
+                            setConfirmDeleteEventId(null);
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] uppercase font-bold"
+                        >
+                          Sim
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteEventId(null)}
+                          className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 text-[9px] uppercase font-bold"
+                        >
+                          Não
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={(e) => handleStartEditEvent(evt, e)}
+                          className="p-1 px-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors font-mono"
+                          title="Editar"
+                        >
+                          <Edit size={10} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteEventId(evt.id)}
+                          className="p-1 px-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 font-bold flex items-center gap-1 text-[9px] uppercase tracking-wider transition-colors font-mono"
+                          title="Excluir"
+                        >
+                          <Trash size={10} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                   <span className="text-xs text-[var(--color-primary)] font-extrabold flex items-center gap-1 hover:translate-x-1 transition-transform font-mono">
                     Gerenciar Operação &rarr;
                   </span>
@@ -730,7 +821,7 @@ export const EventsView: React.FC = () => {
                           <span className="font-extrabold text-gray-800 dark:text-gray-200 block">{c.type}</span>
                           <p className="text-gray-500 dark:text-gray-400 text-[10px]">{c.description}</p>
                           <span className="text-[9px] text-gray-400 block font-mono">
-                            {new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {c.responsibleName}
+                            {c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--"} • {c.responsibleName}
                           </span>
                         </div>
                       ))}
@@ -805,10 +896,10 @@ export const EventsView: React.FC = () => {
 
                               {/* Checklist Criteria Summarized Grid */}
                               <div className="p-3 bg-gray-50/50 dark:bg-zinc-950 rounded-xl border dark:border-zinc-900 text-[10px] font-mono grid grid-cols-2 gap-2 text-gray-450 dark:text-zinc-500">
-                                <span>📅 Horário: <strong className={ev.checklist.onTime ? "text-emerald-500" : "text-red-500"}>{ev.checklist.onTime ? "Ok" : "Falta"}</strong></span>
-                                <span>👔 Uniforme: <strong className={ev.checklist.fullUniform ? "text-emerald-500" : "text-red-500"}>{ev.checklist.fullUniform ? "Ok" : "Falta"}</strong></span>
-                                <span>👥 Postura: <strong className={ev.checklist.posture ? "text-emerald-500" : "text-red-500"}>{ev.checklist.posture ? "Ok" : "Falta"}</strong></span>
-                                <span>💪 Proativ: <strong className={ev.checklist.proactive ? "text-emerald-500" : "text-red-500"}>{ev.checklist.proactive ? "Ok" : "Falta"}</strong></span>
+                                <span>📅 Horário: <strong className={(ev.checklist ? ev.checklist.onTime : ev.arrivedOnTime) ? "text-emerald-500" : "text-red-500"}>{(ev.checklist ? ev.checklist.onTime : ev.arrivedOnTime) ? "Ok" : "Falta"}</strong></span>
+                                <span>👔 Uniforme: <strong className={(ev.checklist ? ev.checklist.fullUniform : ev.fullUniform) ? "text-emerald-500" : "text-red-500"}>{(ev.checklist ? ev.checklist.fullUniform : ev.fullUniform) ? "Ok" : "Falta"}</strong></span>
+                                <span>👥 Postura: <strong className={(ev.checklist ? ev.checklist.posture : ev.professionalPosture) ? "text-emerald-500" : "text-red-500"}>{(ev.checklist ? ev.checklist.posture : ev.professionalPosture) ? "Ok" : "Falta"}</strong></span>
+                                <span>💪 Proativ: <strong className={(ev.checklist ? ev.checklist.proactive : ev.proactive) ? "text-emerald-500" : "text-red-500"}>{(ev.checklist ? ev.checklist.proactive : ev.proactive) ? "Ok" : "Falta"}</strong></span>
                               </div>
 
                               {ev.notes && (
@@ -1052,7 +1143,7 @@ export const EventsView: React.FC = () => {
                                 <div>
                                   <span className="text-[9px] text-gray-400 block font-mono">Horário do Protocolo</span>
                                   <strong className="text-gray-900 dark:text-zinc-100 font-mono text-[10px]">
-                                    {new Date(chk.submittedAt).toLocaleTimeString("pt-BR")} - {new Date(chk.submittedAt).toLocaleDateString("pt-BR")}
+                                    {chk.submittedAt ? `${new Date(chk.submittedAt).toLocaleTimeString("pt-BR")} - ${new Date(chk.submittedAt).toLocaleDateString("pt-BR")}` : "--:-- - --/--/----"}
                                   </strong>
                                 </div>
                               </div>
@@ -1293,7 +1384,7 @@ export const EventsView: React.FC = () => {
                     <img src={photo.url} alt="Evidence" className="w-full h-full object-cover group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end text-[10px] text-white">
                       <span className="font-bold uppercase font-mono bg-orange-500/90 w-max px-1.5 rounded mb-1">{photo.category}</span>
-                      <span>Enviado às {new Date(photo.createdAt).toLocaleTimeString()}</span>
+                      <span>Enviado às {photo.createdAt ? new Date(photo.createdAt).toLocaleTimeString() : "--:--"}</span>
                     </div>
                     <button
                       onClick={() => deleteEventPhoto(photo.id)}
@@ -1323,7 +1414,7 @@ export const EventsView: React.FC = () => {
                       <div className={`p-3 max-w-sm rounded-2xl text-xs space-y-1 shadow-3xs ${isMe ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 dark:bg-zinc-900 text-gray-800 dark:text-zinc-200'}`}>
                         <div className="flex justify-between items-center text-[8px] font-bold font-mono opacity-80 gap-4">
                           <span>{msg.senderName}</span>
-                          <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--"}</span>
                         </div>
                         <p className="font-medium leading-relaxed">{msg.text}</p>
                       </div>
@@ -1409,15 +1500,25 @@ export const EventsView: React.FC = () => {
 
                             <div className="flex items-center justify-between text-[10px] text-gray-400 font-mono border-t pt-2 dark:border-gray-800">
                               <span>Registrado por: <strong>{occ.responsible}</strong></span>
-                              <span>Data: {new Date(occ.createdAt).toLocaleDateString()}</span>
+                              <span>Data: {occ.createdAt ? new Date(occ.createdAt).toLocaleDateString() : "--/--/----"}</span>
                             </div>
 
-                            <div className="flex gap-2 justify-end pt-1">
+                            <div className="flex gap-3 justify-end pt-2 border-t dark:border-gray-850">
                               <button 
-                                onClick={() => deleteOccurrence(occ.id)}
-                                className="text-[10px] text-red-500 font-bold hover:underline cursor-pointer"
+                                onClick={() => handleStartEditOcc(occ)}
+                                className="text-[10px] text-orange-550 font-bold hover:underline cursor-pointer flex items-center gap-1"
                               >
-                                Excluir
+                                <Edit size={10} /> Editar
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm("Deseja realmente excluir esta ocorrência?")) {
+                                    deleteOccurrence(occ.id);
+                                  }
+                                }}
+                                className="text-[10px] text-red-500 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              >
+                                <Trash size={10} /> Excluir
                               </button>
                             </div>
                           </div>
@@ -1430,9 +1531,28 @@ export const EventsView: React.FC = () => {
 
               <div className="space-y-4">
                 <div className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border border-gray-150 dark:border-zinc-850 space-y-4">
-                  <div>
-                    <h3 className="font-bold text-sm text-gray-800 dark:text-gray-200 font-sans">Cadastrar Nova Ocorrência</h3>
-                    <p className="text-xs text-gray-400">Identificou um problema ou falha? Registre imediatamente.</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm text-gray-800 dark:text-gray-200 font-sans">
+                        {editingOcc ? "📝 Editar Ocorrência" : "Cadastrar Nova Ocorrência"}
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        {editingOcc ? "Altere as informações registradas abaixo." : "Identificou um problema ou falha? Registre imediatamente."}
+                      </p>
+                    </div>
+                    {editingOcc && (
+                      <button
+                        onClick={() => {
+                          setEditingOcc(null);
+                          setNewOccTitle("");
+                          setNewOccDesc("");
+                          setNewOccSupplierId("");
+                        }}
+                        className="text-[10px] bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 border dark:border-zinc-800 p-1 px-2 rounded-lg font-bold uppercase text-gray-500 font-mono"
+                      >
+                        Cancelar
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-3 text-xs">
@@ -1507,23 +1627,34 @@ export const EventsView: React.FC = () => {
                     <button
                       onClick={() => {
                         if (!newOccTitle || !newOccDesc) return;
-                        addOccurrence({
-                          title: newOccTitle,
-                          priority: newOccPriority,
-                          category: newOccCategory,
-                          description: newOccDesc,
-                          responsible: currentUser.name,
-                          supplierId: newOccSupplierId || undefined,
-                          eventId: selectedEvent.id,
-                          photo: undefined
-                        });
+                        if (editingOcc) {
+                          updateOccurrence(editingOcc.id, {
+                            title: newOccTitle,
+                            priority: newOccPriority,
+                            category: newOccCategory,
+                            description: newOccDesc,
+                            supplierId: newOccSupplierId || undefined,
+                          });
+                        } else {
+                          addOccurrence({
+                            title: newOccTitle,
+                            priority: newOccPriority,
+                            category: newOccCategory,
+                            description: newOccDesc,
+                            responsible: currentUser.name,
+                            supplierId: newOccSupplierId || undefined,
+                            eventId: selectedEvent.id,
+                            photo: undefined
+                          });
+                        }
                         setNewOccTitle("");
                         setNewOccDesc("");
                         setNewOccSupplierId("");
+                        setEditingOcc(null);
                       }}
-                      className="w-full py-2 bg-[var(--color-primary)] text-white hover:opacity-95 font-bold rounded-xl shadow-xs cursor-pointer"
+                      className="w-full py-2 bg-[var(--color-primary)] text-white hover:opacity-95 font-bold rounded-xl shadow-xs cursor-pointer text-center"
                     >
-                      Registrar Ocorrência
+                      {editingOcc ? "Salvar Alterações" : "Registrar Ocorrência"}
                     </button>
                   </div>
                 </div>

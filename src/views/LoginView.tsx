@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { ShieldAlert, ArrowRight, Sparkles, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { ShieldAlert, ArrowRight, Mail, Lock, Eye, EyeOff, UserCheck, HelpCircle } from "lucide-react";
 
 export const LoginView: React.FC = () => {
-  const { switchProfile, setIsLoggedIn, users, currentPalette, companyConfig } = useApp();
+  const { setIsLoggedIn, users, companyConfig, setCurrentUser, updateUser } = useApp();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -11,23 +11,14 @@ export const LoginView: React.FC = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Preset profiles for super fast switching & testing
-  const presets = [
-    { name: "Leandra Soares", role: "Diretora Comercial (Admin)", profile: "Admin", avatar: "👩‍💼", desc: "Acesso total" },
-    { name: "Leandra Kaisa", role: "Gerente Administrativa", profile: "Administrativo", avatar: "👩‍💻", desc: "Cote, faturamento e contas" },
-    { name: "Leandra Vitoria", role: "Coord. de DP", profile: "DP", avatar: "👩‍⚖️", desc: "Escalas, ponto e credenciamento" },
-    { name: "Carlos Eduardo Silva", role: "Coord. Operacional", profile: "Operacional", avatar: "👨‍🔧", desc: "Gestão técnica de arena" },
-    { name: "Ana Santos", role: "Fotojornalista", profile: "Freelancer", avatar: "📸", desc: "Upload e checklists em campo" },
-  ];
-
-  const handlePresetLogin = (profile: any) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      switchProfile(profile);
-      setIsLoggedIn(true);
-      setIsLoading(false);
-    }, 600);
-  };
+  // Password Redefinition State
+  const [isRedefining, setIsRedefining] = useState(false);
+  const [userToUpdate, setUserToUpdate] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
   const handleFormLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,16 +30,79 @@ export const LoginView: React.FC = () => {
     setIsLoading(true);
 
     setTimeout(() => {
-      // Find user by email or fallback dynamically
-      const matched = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (matched) {
-        switchProfile(matched.profile);
-      } else {
-        // Log in as standard administrator if not explicitly matched, maintaining user's custom name
-        switchProfile("Admin");
+      // Find user by email (strict validation, no auto-register in login)
+      const matched = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
+      if (!matched) {
+        setError("Erro de autenticação: E-mail não cadastrado pelo DP.");
+        setIsLoading(false);
+        return;
       }
+
+      // Check if password match
+      const expectedPassword = matched.password || "123456";
+      if (password !== expectedPassword) {
+        setError("Erro de autenticação: E-mail ou senha de operador inválidos.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Check first access status
+      if (matched.isFirstAccess) {
+        setUserToUpdate(matched);
+        setIsRedefining(true);
+        setIsLoading(false);
+        setError("");
+        return;
+      }
+
+      // Successful standard login
+      setCurrentUser(matched);
       setIsLoggedIn(true);
       setIsLoading(false);
+    }, 800);
+  };
+
+  const handleRedefinePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 4) {
+      setError("A nova senha definitiva deve ter pelo menos 4 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("As senhas digitadas não coincidem. Verifique a digitação.");
+      return;
+    }
+    if (newPassword === "123456") {
+      setError("Por motivos de segurança, escolha uma senha diferente da senha temporária padrão.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    setTimeout(() => {
+      if (userToUpdate) {
+        // Redefining the user password dynamically in AppContext (which persists automatically to localStorage)
+        updateUser(userToUpdate.id, {
+          password: newPassword,
+          isFirstAccess: false
+        });
+
+        setSuccessMsg("Senha redefinida com sucesso! Redirecionando...");
+        
+        setTimeout(() => {
+          const updatedUser = {
+            ...userToUpdate,
+            password: newPassword,
+            isFirstAccess: false
+          };
+          setCurrentUser(updatedUser);
+          setIsLoggedIn(true);
+          setIsLoading(false);
+        }, 1200);
+      } else {
+        setIsLoading(false);
+      }
     }, 800);
   };
 
@@ -65,25 +119,25 @@ export const LoginView: React.FC = () => {
         {/* Header Branding */}
         <div className="flex items-center gap-3">
           <span className="text-3xl font-black text-orange-600 dark:text-orange-500 font-display flex items-center gap-2">
-            <span style={{ color: companyConfig.primaryColor }}>{companyConfig.logo}</span>
+            <span style={{ color: companyConfig.primaryColor }} className="shrink-0">{companyConfig.logo}</span>
             <span>{companyConfig.name}</span>
           </span>
-          <span className="text-[10px] bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300 px-3 py-1 rounded-full uppercase tracking-widest font-black">
+          <span className="text-[10px] bg-orange-100 text-orange-850 dark:bg-orange-950/40 dark:text-orange-300 px-3 py-1 rounded-full uppercase tracking-widest font-black">
             NATIVE v2.6
           </span>
         </div>
 
         {/* Content Promo */}
         <div className="my-auto max-w-xl space-y-6 pt-12 md:pt-0">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-850 shadow-3xs text-[10px] font-bold text-orange-600 dark:text-orange-400 font-mono">
-            <Sparkles size={12} />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-850 shadow-3xs text-[10px] font-bold text-orange-605 dark:text-orange-400 font-mono" style={{ color: companyConfig.primaryColor }}>
+            <span className="text-orange-500">✦</span>
             <span>EXCLUSIVO PARA DIREÇÃO E EQUIPES TÉCNICAS</span>
           </div>
           <h1 className="text-3xl md:text-5xl font-black font-display tracking-tight text-gray-900 dark:text-zinc-50 leading-[1.1]">
-            O cockpit operacional do seu <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">megashow</span> está pronto.
+            O cockpit operacional de <span style={{ color: companyConfig.primaryColor }} className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">{companyConfig.nomeFantasia || companyConfig.name}</span> está pronto.
           </h1>
           <p className="text-sm text-gray-450 dark:text-zinc-400 leading-relaxed max-w-lg font-light">
-            Monitore check-ins de palco, coordene prestadores via checklists interativos de conformidade, retifique pontos do DP corporativo e controle fluxo financeiro sem esforço.
+            {companyConfig.description || "Monitore check-ins, coordene prestadores através de checklists interativos de conformidade, gerencie pontos do DP e controle o fluxo financeiro de forma eficiente."}
           </p>
 
           {/* Quick Stats Grid */}
@@ -98,7 +152,7 @@ export const LoginView: React.FC = () => {
             </div>
             <div>
               <span className="text-[10px] text-gray-400 block uppercase">Nível Operação</span>
-              <strong className="text-xl text-orange-500 font-black">100%</strong>
+              <strong className="text-xl text-orange-500 font-black" style={{ color: companyConfig.primaryColor || '#E85D04' }}>100%</strong>
             </div>
           </div>
         </div>
@@ -114,117 +168,230 @@ export const LoginView: React.FC = () => {
       <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-16 bg-white dark:bg-zinc-950">
         <div className="w-full max-w-md space-y-8">
           
-          {/* Header instructions */}
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-950 dark:text-white font-display">Acesse sua conta</h2>
-            <p className="text-xs text-gray-450 dark:text-zinc-400 mt-1">
-              Escolha uma credencial rápida para simulação rápida ou faça login estruturado abaixo.
-            </p>
-          </div>
+          {!isRedefining ? (
+            <>
+              {/* Header instructions */}
+              <div>
+                <h2 className="text-2xl font-extrabold tracking-tight text-gray-950 dark:text-white font-display">Acesse sua conta</h2>
+                <p className="text-xs text-gray-450 dark:text-zinc-400 mt-1">
+                  Insira suas credenciais corporativas registradas para acessar o painel administrativo.
+                </p>
+              </div>
 
-          {/* Error Banner */}
-          {error && (
-            <div className="bg-red-50 dark:bg-red-950/25 text-red-700 dark:text-red-400 p-3 rounded-2xl text-xs flex items-center gap-2 border border-red-100 dark:border-red-900/30">
-              <ShieldAlert size={16} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+              {/* Guidelines Notice Card */}
+              <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30 text-xs space-y-2.5">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400 font-bold uppercase tracking-wider text-[10px]">
+                  <span>ℹ️ INSTRUÇÕES DE PRIMEIRO ACESSO</span>
+                </div>
+                <div className="space-y-2 text-gray-600 dark:text-zinc-400 text-[11px] leading-normal font-sans">
+                  <p>
+                    Se este é o seu primeiro acesso à plataforma GS Eventos, certifique-se de que seus dados já foram cadastrados pelo setor de Departamento Pessoal (DP).
+                  </p>
+                  <p className="font-semibold pt-1">
+                    1. Utilize o e-mail corporativo informado ao DP.<br />
+                    2. Insira a senha temporária que você recebeu.<br />
+                    3. Após clicar em entrar, o sistema solicitará obrigatoriamente a redefinição de senha para criar sua credencial definitiva e segura.
+                  </p>
+                </div>
+              </div>
 
-          {/* 1. PRESET TESTING CHANNELS */}
-          <div className="space-y-3">
-            <h3 className="text-[10px] uppercase font-black text-gray-400 font-mono tracking-wider">Acesso Rápido de Teste (1 Clique)</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {presets.map((preset) => (
-                <button
-                  key={preset.profile}
-                  onClick={() => handlePresetLogin(preset.profile)}
-                  disabled={isLoading}
-                  className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-orange-50/20 dark:bg-zinc-900/40 dark:hover:bg-zinc-900 border border-slate-100 dark:border-zinc-900/60 hover:border-orange-500/20 rounded-2xl transition-all duration-200 cursor-pointer text-left select-none outline-none group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{preset.avatar}</span>
-                    <div>
-                      <strong className="text-xs text-slate-800 dark:text-zinc-200 font-extrabold block group-hover:text-orange-600 transition-colors">
-                        {preset.name}
-                      </strong>
-                      <span className="text-[10px] text-gray-400 font-medium block">
-                        {preset.role} • <span className="italic text-[9px] text-gray-400">{preset.desc}</span>
-                      </span>
-                    </div>
+              {/* Error Banner */}
+              {error && (
+                <div className="bg-red-50 dark:bg-red-950/25 text-red-700 dark:text-red-400 p-3 rounded-2xl text-xs flex items-center gap-2 border border-red-100 dark:border-red-900/30">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* SECURE FORM LOGIN */}
+              <form onSubmit={handleFormLogin} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase font-bold text-gray-450 dark:text-zinc-500 font-mono">E-mail Corporativo</label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      disabled={isLoading}
+                      placeholder="Ex: seu.nome@empresa.com.br"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 placeholder-gray-400 dark:placeholder-zinc-650 border border-slate-200/80 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl text-xs focus:outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-zinc-950 transition-all font-sans text-slate-900 dark:text-zinc-100 shadow-3xs"
+                    />
                   </div>
-                  <ArrowRight size={14} className="text-slate-350 dark:text-zinc-650 group-hover:text-orange-500 transition-transform group-hover:translate-x-1" />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[10px] uppercase font-bold text-gray-450 dark:text-zinc-500 font-mono">Senha de Operador</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setError("Por favor, utilize a senha temporária de primeiro acesso (123456) caso ainda não tenha a alterado.")} 
+                      className="text-[9px] text-orange-600 dark:text-orange-400 hover:underline font-mono font-bold"
+                      style={{ color: companyConfig.primaryColor }}
+                    >
+                      Dúvidas de senha?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      disabled={isLoading}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-11 pr-11 py-3 placeholder-gray-400 dark:placeholder-zinc-650 border border-slate-200/80 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl text-xs focus:outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-zinc-950 transition-all font-sans text-slate-900 dark:text-zinc-100 shadow-3xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-3.5 text-gray-400 hover:text-gray-650"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-[var(--color-primary)] text-white hover:opacity-95 font-bold py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-3xs select-none relative overflow-hidden"
+                  style={{ backgroundColor: companyConfig.primaryColor }}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Verificando credenciais...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Entrar no Cockpit Corporativo</span>
+                      <ArrowRight size={14} />
+                    </>
+                  )}
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative flex py-2 items-center select-none font-mono">
-            <div className="flex-grow border-t border-slate-100 dark:border-zinc-900"></div>
-            <span className="flex-shrink mx-4 text-[9px] text-gray-450 dark:text-zinc-500 font-bold uppercase tracking-widest">Ou login com senha</span>
-            <div className="flex-grow border-t border-slate-100 dark:border-zinc-900"></div>
-          </div>
-
-          {/* 2. SECURE FORM SIMULATION */}
-          <form onSubmit={handleFormLogin} className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-[10px] uppercase font-bold text-gray-450 dark:text-zinc-500 font-mono">E-mail Corporativo</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
-                <input
-                  type="email"
-                  disabled={isLoading}
-                  placeholder="Ex: leandrasoares@gseventos.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 placeholder-gray-400 dark:placeholder-zinc-650 border border-slate-200/80 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl text-xs focus:outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-zinc-950 transition-all font-sans text-slate-900 dark:text-zinc-100 shadow-3xs"
-                />
+              </form>
+            </>
+          ) : (
+            <>
+              {/* HEADER FOR PASSWORD REDEFINITION */}
+              <div>
+                <span className="text-[10px] bg-amber-105 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 px-3 py-1 rounded-full uppercase tracking-widest font-black inline-block mb-2">
+                  🔒 Registro de Primeiro Acesso
+                </span>
+                <h2 className="text-2xl font-extrabold tracking-tight text-gray-950 dark:text-white font-display">Defina sua nova senha</h2>
+                <p className="text-xs text-gray-450 dark:text-zinc-400 mt-1">
+                  Por segurança das operações de <span className="font-bold">{userToUpdate?.name}</span>, substitua sua senha provisória por uma credencial definitiva e confiável.
+                </p>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="block text-[10px] uppercase font-bold text-gray-450 dark:text-zinc-500 font-mono">Senha de Operador</label>
-                <a href="#reset" onClick={(e) => { e.preventDefault(); alert("Acesso rápido disponível pelos botões superiores!"); }} className="text-[9px] text-orange-600 dark:text-orange-400 hover:underline font-mono font-bold">Esqueceu?</a>
+              {/* Guidelines Redefinition Notice */}
+              <div className="p-4 rounded-2xl bg-orange-50/50 dark:bg-orange-950/10 border border-orange-200/50 dark:border-orange-900/30 text-xs">
+                <p className="text-[11px] leading-relaxed text-orange-850 dark:text-orange-300">
+                  ⚠️ <strong>Atenção:</strong> Escolha uma senha forte que você lembrará facilmente. O sistema solicitará esta nova senha em todos os acessos futuros a partir de agora. Do contrário, o DP terá de redefinir seu cadastro.
+                </p>
               </div>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
+
+              {/* Error Banner */}
+              {error && (
+                <div className="bg-red-50 dark:bg-red-950/25 text-red-700 dark:text-red-400 p-3 rounded-2xl text-xs flex items-center gap-2 border border-red-100 dark:border-red-900/30">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Success Banner */}
+              {successMsg && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/25 text-emerald-700 dark:text-emerald-400 p-3 rounded-2xl text-xs flex items-center gap-2 border border-emerald-100 dark:border-emerald-900/30">
+                  <span className="shrink-0 font-bold">✓</span>
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              {/* PASSWORD REDEFINITION FORM */}
+              <form onSubmit={handleRedefinePassword} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase font-bold text-gray-450 dark:text-zinc-500 font-mono">Nova Senha Definitiva</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      disabled={isLoading}
+                      placeholder="Mínimo de 4 caracteres"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-11 pr-11 py-3 placeholder-gray-400 dark:placeholder-zinc-650 border border-slate-200/80 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl text-xs focus:outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-zinc-950 transition-all font-sans text-slate-900 dark:text-zinc-100 shadow-3xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3.5 top-3.5 text-gray-400"
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase font-bold text-gray-450 dark:text-zinc-500 font-mono">Confirmar Nova Senha</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      disabled={isLoading}
+                      placeholder="Repita sua nova senha"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full pl-11 pr-11 py-3 placeholder-gray-400 dark:placeholder-zinc-650 border border-slate-200/80 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl text-xs focus:outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-zinc-950 transition-all font-sans text-slate-900 dark:text-zinc-100 shadow-3xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3.5 top-3.5 text-gray-400"
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
                   disabled={isLoading}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-11 py-3 placeholder-gray-400 dark:placeholder-zinc-650 border border-slate-200/80 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl text-xs focus:outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-zinc-950 transition-all font-sans text-slate-900 dark:text-zinc-100 shadow-3xs"
-                />
+                  className="w-full bg-[var(--color-primary)] text-white hover:opacity-95 font-bold py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-3xs select-none relative overflow-hidden"
+                  style={{ backgroundColor: companyConfig.primaryColor }}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Salvando nova senha...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Redefinir Senha & Entrar</span>
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3.5 text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setIsRedefining(false);
+                    setUserToUpdate(null);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setError("");
+                  }}
+                  className="w-full text-center text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 text-[10px] font-mono mt-2"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  ← Voltar para login normal
                 </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-[var(--color-primary)] text-white hover:opacity-95 font-bold py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-3xs select-none relative overflow-hidden"
-              style={{ backgroundColor: companyConfig.primaryColor }}
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Processando acesso...</span>
-                </>
-              ) : (
-                <>
-                  <span>Entrar no Cockpit Corporativo</span>
-                  <ArrowRight size={14} />
-                </>
-              )}
-            </button>
-          </form>
+              </form>
+            </>
+          )}
 
         </div>
       </div>

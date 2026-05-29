@@ -8,6 +8,7 @@ export const CredentialsView: React.FC = () => {
   const [activeEmpId, setActiveEmpId] = useState<string>("emp1");
   const [activeEventTitle, setActiveEventTitle] = useState<string>("Réveillon Copacabana 2027");
   const [accessZone, setAccessZone] = useState<string>("ACESSO TOTAL (Staff)");
+  const [isExported, setIsExported] = useState(false);
 
   const selectedWorker = employees.find(e => e.id === activeEmpId) || employees[0];
 
@@ -70,10 +71,17 @@ export const CredentialsView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => alert("Simulando exportação de arquivo PDF pronto para impressoras térmicas verticais...")}
-            className="w-full py-2.5 bg-gray-905 bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-bold rounded-xl flex items-center justify-center gap-1.5 font-mono"
+            onClick={() => {
+              setIsExported(true);
+              setTimeout(() => setIsExported(false), 3000);
+            }}
+            className={`w-full py-2.5 font-bold rounded-xl flex items-center justify-center gap-1.5 font-mono border transition-all ${isExported ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-200/50" : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-transparent"}`}
           >
-            <Download size={14} /> Exportar Crachá (PDF)
+            {isExported ? (
+              <>✓ Crachá Gerado com Sucesso!</>
+            ) : (
+              <><Download size={14} /> Exportar Crachá (PDF)</>
+            )}
           </button>
         </div>
 

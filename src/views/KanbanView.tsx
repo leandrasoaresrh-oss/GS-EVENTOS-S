@@ -14,6 +14,7 @@ export const KanbanView: React.FC = () => {
   const [viewType, setViewType] = useState<'kanban' | 'list' | 'calendar'>('kanban');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
   const [taskRespId, setTaskRespId] = useState(currentUser.id);
@@ -21,30 +22,80 @@ export const KanbanView: React.FC = () => {
   const [taskPriority, setTaskPriority] = useState<'Baixa' | 'Media' | 'Alta' | 'Urgente'>('Media');
   const [taskSector, setTaskSector] = useState("Produção");
   const [dependsOnId, setDependsOnId] = useState(""); // Parent task ID dependency
+  const [taskEstimatedHours, setTaskEstimatedHours] = useState("");
+  const [taskActualHours, setTaskActualHours] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(new Date().toISOString().split("T")[0]);
+
+  const handleStartEdit = (t: Task) => {
+    setEditingTask(t);
+    setTaskTitle(t.title);
+    setTaskDesc(t.description || "");
+    setTaskRespId(t.responsibleId);
+    setTaskDueDate(t.dueDate);
+    setTaskPriority(t.priority);
+    setTaskSector(t.sector || "Produção");
+    setDependsOnId(t.dependsOnTaskId || "");
+    setTaskEstimatedHours(t.estimatedHours ? String(t.estimatedHours) : "");
+    setTaskActualHours(t.actualHours ? String(t.actualHours) : "");
+    setValidationError(null);
+    setIsFormOpen(true);
+  };
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskTitle || !taskDueDate) return;
 
-    addTask({
+    // Check circular dependency
+    if (dependsOnId && editingTask && dependsOnId === editingTask.id) {
+      setValidationError("Uma tarefa não pode depender dela mesma!");
+      return;
+    }
+
+    const taskPayload = {
       title: taskTitle,
       description: taskDesc,
       responsibleId: taskRespId,
       dueDate: taskDueDate,
       priority: taskPriority,
-      status: "Pendente",
       sector: taskSector,
-      dependsOnTaskId: dependsOnId || undefined
-    } as any);
+      dependsOnTaskId: dependsOnId || undefined,
+      estimatedHours: taskEstimatedHours ? Number(taskEstimatedHours) : undefined,
+      actualHours: taskActualHours ? Number(taskActualHours) : undefined,
+    };
+
+    if (editingTask) {
+      // If parent isn't completed and we try to set status to Concluida, validate
+      if (editingTask.status === "Concluida" || taskPayload.dependsOnTaskId) {
+        const parent = tasks.find(t => t.id === taskPayload.dependsOnTaskId);
+        if (parent && parent.status !== "Concluida") {
+          // If moving to Concluida but parent is not done
+          if (editingTask.status === "Concluida") {
+            setValidationError(`Bloqueado: A tarefa dependente "${parent.title}" precisa estar Concluída antes.`);
+            return;
+          }
+        }
+      }
+
+      updateTask(editingTask.id, taskPayload);
+    } else {
+      addTask({
+        ...taskPayload,
+        status: "Pendente"
+      } as any);
+    }
 
     // Reset fields
     setTaskTitle("");
     setTaskDesc("");
     setDependsOnId("");
     setTaskDueDate("");
+    setTaskEstimatedHours("");
+    setTaskActualHours("");
+    setEditingTask(null);
+    setValidationError(null);
     setIsFormOpen(false);
   };
 
@@ -201,67 +252,111 @@ export const KanbanView: React.FC = () => {
 
       {/* TASK CREATION MODAL/DIALOG */}
       {isFormOpen && (
-        <form onSubmit={handleCreateTask} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border border-gray-150 dark:border-zinc-850 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-sans shadow-lg">
-          <div className="md:col-span-2">
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Título da Atividade *</label>
-            <input type="text" required placeholder="Ex: Fixar grades de som do palco" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
+        <form onSubmit={handleCreateTask} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border border-gray-150 dark:border-zinc-850 gap-4 text-xs font-sans shadow-lg flex flex-col space-y-2">
+          <div className="flex items-center justify-between border-b dark:border-zinc-900 pb-2">
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+              {editingTask ? "📝 Editar Atividade" : "➕ Nova Atividade"}
+            </h3>
+            {editingTask && (
+              <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono font-bold px-2 py-0.5 rounded-full uppercase">
+                ID: {editingTask.id}
+              </span>
+            )}
           </div>
 
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data de Entrega / Limite *</label>
-            <input type="date" required value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-gray-700 focus:outline-none" />
+          {validationError && (
+            <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-2xl text-red-500 font-bold leading-relaxed">
+              ⚠️ {validationError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Título da Atividade *</label>
+              <input type="text" required placeholder="Ex: Fixar grades de som do palco" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data de Entrega / Limite *</label>
+              <input type="date" required value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-gray-700 dark:text-zinc-300 focus:outline-none" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Nível de Prioridade</label>
+              <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value as any)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-xs focus:outline-none">
+                <option value="Baixa">Baixa</option>
+                <option value="Media">Média</option>
+                <option value="Alta">Alta</option>
+                <option value="Urgente">Urgente (Interrupção)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Atribuir Operador Técnico *</label>
+              <select value={taskRespId} onChange={(e) => setTaskRespId(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-xs focus:outline-none">
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.profile})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Área / Setor Técnico</label>
+              <input type="text" placeholder="Ex: Produção" value={taskSector} onChange={(e) => setTaskSector(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
+            </div>
+
+            {/* Hours fields */}
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Horas Estimadas</label>
+              <input type="number" min="0" step="0.5" placeholder="Ex: 8.5" value={taskEstimatedHours} onChange={(e) => setTaskEstimatedHours(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Horas Reais Consumidas</label>
+              <input type="number" min="0" step="0.5" placeholder="Ex: 10" value={taskActualHours} onChange={(e) => setTaskActualHours(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Nível de Prioridade</label>
-            <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value as any)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-xs focus:outline-none">
-              <option value="Baixa">Baixa</option>
-              <option value="Media font-bold">Média</option>
-              <option value="Alta">Alta</option>
-              <option value="Urgente">Urgente (Interrupção)</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* TASK DEPENDENCY CREATOR */}
+            <div className="md:col-span-4">
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 flex items-center gap-1">
+                <Lock size={10} className="text-orange-500" />
+                <span>Depende de outra tarefa prévia? (Opcional)</span>
+              </label>
+              <select
+                className="w-full p-2.5 bg-gray-50/70 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-xs focus:outline-none"
+                value={dependsOnId}
+                onChange={e => setDependsOnId(e.target.value)}
+              >
+                <option value="">Nenhuma. Entrada liberada.</option>
+                {tasks.filter(t => !editingTask || t.id !== editingTask.id).map(t => (
+                  <option key={t.id} value={t.id}>{t.title} ({t.status})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-4">
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Descrição e Especificação Técnica</label>
+              <textarea rows={2} placeholder="Insira orientações detalhadas de operação..." value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl resize-none focus:outline-none" />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Atribuir Operador Técnico *</label>
-            <select value={taskRespId} onChange={(e) => setTaskRespId(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-xs focus:outline-none">
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.profile})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Área / Setor Técnico</label>
-            <input type="text" placeholder="Ex: Produção" value={taskSector} onChange={(e) => setTaskSector(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl focus:outline-none" />
-          </div>
-
-          {/* TASK DEPENDENCY CREATOR */}
-          <div className="md:col-span-2">
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 flex items-center gap-1">
-              <Lock size={10} className="text-orange-500" />
-              <span>Depende de outra tarefa prévia? (Opcional)</span>
-            </label>
-            <select
-              className="w-full p-2.5 bg-gray-50/70 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl text-xs focus:outline-none"
-              value={dependsOnId}
-              onChange={e => setDependsOnId(e.target.value)}
+          <div className="md:col-span-4 flex justify-end gap-2 pt-4 border-t dark:border-zinc-900">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTask(null);
+                setValidationError(null);
+                setIsFormOpen(false);
+              }}
+              className="px-3 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 rounded-xl font-bold font-mono transition-colors"
             >
-              <option value="">Nenhuma. Entrada liberada.</option>
-              {tasks.map(t => (
-                <option key={t.id} value={t.id}>{t.title} ({t.status})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="md:col-span-4">
-            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Descrição e Especificação Técnica</label>
-            <textarea rows={2} placeholder="Insira orientações detalhadas de operação..." value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-zinc-900 border dark:border-zinc-850 rounded-xl resize-none focus:outline-none" />
-          </div>
-
-          <div className="md:col-span-4 flex justify-end gap-2 pt-2 border-t dark:border-zinc-900">
-            <button type="button" onClick={() => setIsFormOpen(false)} className="px-3 py-2 bg-gray-200 dark:bg-zinc-800 rounded-xl font-bold font-mono">Cancelar</button>
-            <button type="submit" className="px-4 py-2 bg-[var(--color-primary)] text-white font-bold rounded-xl shadow-xs">Gravar Atividade</button>
+              Cancelar
+            </button>
+            <button type="submit" className="px-4 py-2 bg-[var(--color-primary)] hover:bg-orange-600 transition-colors text-white font-bold rounded-xl shadow-xs">
+              {editingTask ? "Salvar Alterações" : "Gravar Atividade"}
+            </button>
           </div>
         </form>
       )}
@@ -327,15 +422,26 @@ export const KanbanView: React.FC = () => {
                           <div className="flex justify-between items-center text-[9px] text-gray-400 font-mono pt-1">
                             <span>Prazo: {t.dueDate}</span>
                             <span className="font-semibold text-gray-600 dark:text-gray-300">
-                              {resp ? resp.name.split(" ")[0] : "Operador"}
+                               {resp ? resp.name.split(" ")[0] : "Operador"}
                             </span>
                           </div>
+
+                          {(t.estimatedHours !== undefined || t.actualHours !== undefined) && (
+                            <div className="flex items-center justify-between text-[9px] font-mono mt-1.5 p-1 px-2 bg-gray-50 dark:bg-zinc-900/50 rounded-lg border border-gray-150/40 dark:border-zinc-850">
+                              <span className="flex items-center gap-1 text-gray-500">
+                                <Clock size={9} /> Est: <strong>{t.estimatedHours ?? 0}h</strong>
+                              </span>
+                              <span className="flex items-center gap-1 text-gray-500">
+                                Real: <strong className={t.actualHours && t.estimatedHours && t.actualHours > t.estimatedHours ? "text-red-500 font-black animate-pulse" : "text-emerald-600 dark:text-emerald-400 font-bold"}>{t.actualHours ?? 0}h</strong>
+                              </span>
+                            </div>
+                          )}
 
                           <div className="flex justify-end gap-1.5 pt-1.5 border-t dark:border-zinc-900">
                             <button
                               onClick={() => handleMoveStatus(t.id, t.status, 'tras')}
                               disabled={isBlocked}
-                              className={`p-1 rounded text-gray-400 ${isBlocked ? 'cursor-not-allowed opacity-40' : 'hover:bg-gray-50'}`}
+                              className={`p-1 rounded text-gray-400 ${isBlocked ? 'cursor-not-allowed opacity-40' : 'hover:bg-gray-50 dark:hover:bg-zinc-900'}`}
                               title="Recuar status"
                             >
                               <ArrowLeft size={11} />
@@ -348,10 +454,18 @@ export const KanbanView: React.FC = () => {
                             >
                               <ArrowRight size={11} />
                             </button>
+
+                            <button
+                              onClick={() => handleStartEdit(t)}
+                              className="p-1 hover:bg-orange-50 dark:hover:bg-orange-950/20 text-orange-550 rounded cursor-pointer ml-1"
+                              title="Editar Detalhes"
+                            >
+                              <Edit size={11} />
+                            </button>
                             
                             <button
                               onClick={() => deleteTask(t.id)}
-                              className="p-1 hover:bg-red-50 text-red-500 rounded cursor-pointer ml-1"
+                              className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded cursor-pointer"
                               title="Excluir"
                             >
                               <Trash size={11} />
@@ -374,12 +488,13 @@ export const KanbanView: React.FC = () => {
       {viewType === 'list' && (
         <div className="bg-white dark:bg-zinc-950 border border-gray-150 dark:border-zinc-850 rounded-3xl overflow-hidden shadow-3xs">
           <div className="p-4 bg-gray-50 dark:bg-zinc-900 border-b dark:border-zinc-800 text-[10px] uppercase font-black tracking-wide text-gray-400 grid grid-cols-12 gap-2">
-            <div className="col-span-4">Atividade / Demanda</div>
+            <div className="col-span-3">Atividade / Demanda</div>
             <div className="col-span-2">Setor</div>
             <div className="col-span-2 text-center">Início / Entrega</div>
-            <div className="col-span-2 text-center">Responsável</div>
+            <div className="col-span-2 text-center font-mono">Controle de Horas</div>
+            <div className="col-span-1.5 text-center">Responsável</div>
             <div className="col-span-1 text-center">Status</div>
-            <div className="col-span-1 text-center"></div>
+            <div className="col-span-0.5 text-center">Ações</div>
           </div>
 
           <div className="divide-y divide-gray-100 dark:divide-zinc-900">
@@ -393,7 +508,7 @@ export const KanbanView: React.FC = () => {
                 return (
                   <div key={t.id} className={`p-4 grid grid-cols-12 gap-2 items-center text-xs ${isBlocked ? 'bg-red-500/5 select-none opacity-85' : 'hover:bg-gray-50/60 dark:hover:bg-zinc-900/10'}`}>
                     
-                    <div className="col-span-4 space-y-1">
+                    <div className="col-span-3 space-y-1">
                       <strong className={`text-gray-900 dark:text-zinc-100 font-extrabold flex items-center gap-1.5 ${t.status === "Concluida" ? "line-through text-gray-400" : ""}`}>
                         {isBlocked ? <Lock size={12} className="text-red-500 shrink-0" /> : <Unlock size={12} className="text-gray-300" />}
                         <span>{t.title}</span>
@@ -412,7 +527,15 @@ export const KanbanView: React.FC = () => {
 
                     <div className="col-span-2 text-center text-gray-400 font-mono font-semibold">{t.dueDate}</div>
 
-                    <div className="col-span-2 text-center font-bold text-gray-700 dark:text-zinc-350">{resp ? resp.name : "Integrador"}</div>
+                    {/* Hours column */}
+                    <div className="col-span-2 text-center font-mono text-[10px]">
+                      <div className="flex gap-2 justify-center">
+                        <span className="text-gray-450">Est: <strong className="text-gray-700 dark:text-zinc-300">{t.estimatedHours ?? 0}h</strong></span>
+                        <span className="text-gray-450">Real: <strong className={t.actualHours && t.estimatedHours && t.actualHours > t.estimatedHours ? "text-red-500 font-black" : "text-emerald-500 font-bold"}>{t.actualHours ?? 0}h</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-1.5 text-center font-bold text-gray-700 dark:text-zinc-350 truncate">{resp ? resp.name : "Integrador"}</div>
 
                     <div className="col-span-1 text-center">
                       <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-black font-mono scale-90 ${t.status === "Concluida" ? "bg-emerald-100 text-emerald-800" : t.status === "Atrasada" ? "bg-red-100 text-red-800" : t.status === "Em Andamento" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-600"}`}>
@@ -420,21 +543,21 @@ export const KanbanView: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Quick Move Status Arrows */}
-                    <div className="col-span-1 flex items-center justify-center gap-1">
+                    {/* Actions tools including edit and delete in list */}
+                    <div className="col-span-0.5 flex items-center justify-end gap-1">
                       <button
-                        onClick={() => handleMoveStatus(t.id, t.status, 'tras')}
-                        disabled={isBlocked}
-                        className={`p-1 text-gray-450 hover:bg-gray-150 rounded ${isBlocked ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        onClick={() => handleStartEdit(t)}
+                        className="p-1 hover:bg-orange-50 dark:hover:bg-orange-950/20 text-orange-550 rounded cursor-pointer"
+                        title="Editar Detalhes"
                       >
-                        <ArrowLeft size={11} />
+                        <Edit size={11} />
                       </button>
                       <button
-                        onClick={() => handleMoveStatus(t.id, t.status, 'frente')}
-                        disabled={isBlocked}
-                        className={`p-1 text-gray-450 hover:bg-gray-150 rounded ${isBlocked ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        onClick={() => deleteTask(t.id)}
+                        className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded cursor-pointer"
+                        title="Excluir"
                       >
-                        <ArrowRight size={11} />
+                        <Trash size={11} />
                       </button>
                     </div>
 

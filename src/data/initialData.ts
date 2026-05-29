@@ -165,7 +165,9 @@ export const INITIAL_USERS: User[] = [
     active: true,
     avatar: "👩‍💼",
     statusText: "Em reunião estratégica",
-    profileColor: "gs_eventos"
+    profileColor: "gs_eventos",
+    password: "123456",
+    isFirstAccess: true
   },
   {
     id: "usr2",
@@ -175,7 +177,9 @@ export const INITIAL_USERS: User[] = [
     sector: "Controladoria",
     active: true,
     avatar: "👩‍💻",
-    statusText: "Analisando contratos"
+    statusText: "Analisando contratos",
+    password: "123456",
+    isFirstAccess: true
   },
   {
     id: "usr3",
@@ -185,7 +189,9 @@ export const INITIAL_USERS: User[] = [
     sector: "Departamento Pessoal",
     active: true,
     avatar: "👩‍💼",
-    statusText: "Ajustando folhas de ponto"
+    statusText: "Ajustando folhas de ponto",
+    password: "123456",
+    isFirstAccess: true
   },
   {
     id: "usr4",
@@ -195,7 +201,9 @@ export const INITIAL_USERS: User[] = [
     sector: "Produção Executiva",
     active: true,
     avatar: "👨‍🔧",
-    statusText: "Em campo - Montagem Réveillon"
+    statusText: "Em campo - Montagem Réveillon",
+    password: "123456",
+    isFirstAccess: true
   },
   {
     id: "usr5",
@@ -205,7 +213,9 @@ export const INITIAL_USERS: User[] = [
     sector: "Propostas Comerciais",
     active: true,
     avatar: "👨‍💻",
-    statusText: "Disponível"
+    statusText: "Disponível",
+    password: "123456",
+    isFirstAccess: true
   },
   {
     id: "usr6",
@@ -214,7 +224,9 @@ export const INITIAL_USERS: User[] = [
     profile: "Freelancer",
     active: true,
     avatar: "🤝",
-    statusText: "Em campo - Cobertura operacional"
+    statusText: "Em campo - Cobertura operacional",
+    password: "123456",
+    isFirstAccess: true
   },
   {
     id: "usr7",
@@ -223,7 +235,9 @@ export const INITIAL_USERS: User[] = [
     profile: "Freelancer",
     active: true,
     avatar: "🙋‍♀️",
-    statusText: "Alocada no Réveillon"
+    statusText: "Alocada no Réveillon",
+    password: "123455", // default password
+    isFirstAccess: true
   }
 ];
 

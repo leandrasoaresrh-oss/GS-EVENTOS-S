@@ -84,8 +84,7 @@ export const VencimentosView: React.FC = () => {
   const [showOnlyMine, setShowOnlyMine] = useState(currentUser.profile === "Operacional");
 
   // CALCULATE AUTOMATIC DOCUMENT STATUS IN REAL-TIME (pág 42, 64)
-  // Current local simulated date: 2026-05-28
-  const currentDate = new Date("2026-05-28");
+  const currentDate = new Date();
 
   const calculateStatus = (dueDateStr: string) => {
     const due = new Date(dueDateStr);

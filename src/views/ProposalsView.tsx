@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { Plus, Search, FileText, CheckCircle2, DollarSign, Calculator, Download, Trash, Edit, Settings } from "lucide-react";
+import { Plus, Search, FileText, CheckCircle2, DollarSign, Calculator, Download, Trash, Edit, Settings, Check } from "lucide-react";
 
 export const ProposalsView: React.FC = () => {
   const { currentUser } = useApp();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Simulated Commercial Proposals DB local storage
   const [proposals, setProposals] = useState<any[]>(() => {
@@ -237,11 +238,14 @@ export const ProposalsView: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => alert("Simulando exportação inteligente de proposta comercial para PDF corporativo...")}
-                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-850 rounded text-gray-700"
-                      title="Exportar PDF"
+                      onClick={() => {
+                        setDownloadingId(prop.id);
+                        setTimeout(() => setDownloadingId(null), 2500);
+                      }}
+                      className={`p-1 rounded text-gray-700 dark:text-zinc-300 transition-all ${downloadingId === prop.id ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400" : "hover:bg-gray-100 dark:hover:bg-gray-850"}`}
+                      title={downloadingId === prop.id ? "PDF Gerado!" : "Exportar PDF"}
                     >
-                      <Download size={14} />
+                      {downloadingId === prop.id ? <Check size={14} className="text-emerald-600" /> : <Download size={14} />}
                     </button>
 
                     {currentUser.profile === "Admin" && (
